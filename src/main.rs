@@ -42,8 +42,6 @@ fn init_client(mut stream: TcpStream, username: String)
 {
     println!("Client initialized");
 
-    stream.set_nonblocking(true).expect("Failed to set stream as nonblocking");
-
     let (stdin_tx, stdin_rx) = mpsc::channel();
     std::thread::spawn(move || 
     {
@@ -68,11 +66,8 @@ fn init_client(mut stream: TcpStream, username: String)
             let mut rb = BufReader::new(&receiving_thread_stream);
             let mut string = String::new();
 
-            match rb.read_line(&mut string)
-            {
-                Ok(_) => stream_tx.send(string).expect("Failed to send read message from stream to main thread"),
-                Err(_) => {},
-            }
+            rb.read_line(&mut string).expect("Failed to read stream");
+            stream_tx.send(string).expect("Failed to send read message from stream to main thread");
             
             std::thread::sleep(Duration::new(0, 100));
         }
