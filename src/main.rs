@@ -42,6 +42,7 @@ fn init_client(mut stream: TcpStream, username: String)
 {
     println!("Client initialized");
 
+    //Spawn a thread to handle stdin input from console
     let (stdin_tx, stdin_rx) = mpsc::channel();
     std::thread::spawn(move || 
     {
@@ -53,10 +54,12 @@ fn init_client(mut stream: TcpStream, username: String)
 
             stdin_tx.send(buf).expect("Failed to send user input to main thread");
 
+            //There's no need to run the loop at full speed, throttle it a bit
             std::thread::sleep(Duration::new(0, 100));
         }
     });
 
+    //Spawn a thread to handle reading data coming from the stream
     let (stream_tx, stream_rx) = mpsc::channel();
     let receiving_thread_stream = stream.try_clone().expect("Failed to clone");
     std::thread::spawn(move ||
@@ -69,14 +72,14 @@ fn init_client(mut stream: TcpStream, username: String)
             rb.read_line(&mut string).expect("Failed to read stream");
             stream_tx.send(string).expect("Failed to send read message from stream to main thread");
             
+            //There's no need to run the loop at full speed, throttle it a bit
             std::thread::sleep(Duration::new(0, 100));
         }
     });
 
     loop
     {
-        //Handle user input
-
+        //Send messages typed into console through the stream
         match stdin_rx.try_recv()
         {
             Ok(string) => 
@@ -87,16 +90,19 @@ fn init_client(mut stream: TcpStream, username: String)
             Err(_) => (),
         }
 
+        //Print received messages to console
         match stream_rx.try_recv()
         {
             Ok(string) => print!("{}", string),
             Err(_) => (),
         }
 
+        //There's no need to run the loop at full speed, throttle it a bit
         std::thread::sleep(Duration::new(0, 100));
     }
 }
 
+// Sends a message through a stream
 fn send_message(stream: &mut TcpStream, message: String) -> io::Result<()>
 {
     return stream.write_all(message.as_bytes());
